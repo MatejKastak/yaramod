@@ -181,10 +181,12 @@ void addBasicClasses(py::module& module)
 	py::class_<HexString, String, std::shared_ptr<HexString>>(module, "HexString");
 	py::class_<Regexp, String, std::shared_ptr<Regexp>>(module, "Regexp")
 		.def_property_readonly("unit", &Regexp::getUnit)
+		.def_property_readonly("power", &Regexp::getPower)
 		.def_property_readonly("suffix_modifiers", &Regexp::getSuffixModifiers);
 
 	py::class_<RegexpUnit, std::shared_ptr<RegexpUnit>>(module, "RegexpUnit")
 		.def("accept", &RegexpUnit::accept)
+		.def_property_readonly("power", &RegexpUnit::getPower)
 		.def_property_readonly("text", &RegexpUnit::getText);
 
 	py::class_<RegexpClass, RegexpUnit, std::shared_ptr<RegexpClass>>(module, "RegexpClass")

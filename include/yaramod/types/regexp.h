@@ -31,6 +31,13 @@ public:
 	virtual std::string getText() const = 0;
 
 	virtual RegexpVisitResult accept(RegexpVisitor* v) = 0;
+
+	virtual double getPower() const = 0;
+
+protected:
+	static constexpr double STAR_FACTOR = 40.0; // ?
+	static constexpr double PLUS_FACTOR = 42.0; // ?
+	static constexpr double OPTIONAL_FACTOR = 0.5; // ?
 };
 
 /**
@@ -57,6 +64,12 @@ public:
 		return _negative;
 	}
 
+	virtual double getPower() const override
+	{
+		// TODO: NOT IMPLEMENTED
+		return 1.0;
+	}
+
 	virtual RegexpVisitResult accept(RegexpVisitor* v) override
 	{
 		return v->visit(this);
@@ -78,6 +91,11 @@ public:
 	virtual ~RegexpText() override {}
 
 	virtual std::string getText() const override { return _text; }
+
+	virtual double getPower() const override
+	{
+		return _text.length();
+	}
 
 	virtual RegexpVisitResult accept(RegexpVisitor* v) override
 	{
@@ -101,6 +119,13 @@ public:
 	{
 		return v->visit(this);
 	}
+
+	virtual double getPower() const override
+	{
+		// TODO: CHECK IMPLEMENTATION
+		return static_cast<double>(0xff);
+	}
+
 };
 
 /**
@@ -236,6 +261,11 @@ public:
 	{
 		return v->visit(this);
 	}
+
+	virtual double getPower() const override
+	{
+		return 0.0;
+	}
 };
 
 /**
@@ -250,6 +280,11 @@ public:
 	virtual RegexpVisitResult accept(RegexpVisitor* v) override
 	{
 		return v->visit(this);
+	}
+
+	virtual double getPower() const override
+	{
+		return 0.0;
 	}
 };
 
@@ -277,7 +312,7 @@ public:
 		return _greedy;
 	}
 
-	std::shared_ptr<RegexpUnit> getOperand()
+	std::shared_ptr<RegexpUnit>& getOperand()
 	{
 		return _operand;
 	}
@@ -285,6 +320,13 @@ public:
 	virtual RegexpVisitResult accept(RegexpVisitor* v) override
 	{
 		return v->visit(this);
+	}
+
+	virtual double getPower() const override
+	{
+		// TODO: CHECK IMPLEMENTATION
+		// This prob needs some factor? No this is parent class, prob never instantiated
+		return _operand->getPower();
 	}
 
 protected:
@@ -309,6 +351,13 @@ public:
 	{
 		return v->visit(this);
 	}
+
+	virtual double getPower() const override
+	{
+		// TODO: CHECK IMPLEMENTATION
+		// This prob needs some factor?
+		return _operand->getPower();
+	}
 };
 
 /**
@@ -324,6 +373,13 @@ public:
 	{
 		return v->visit(this);
 	}
+
+	virtual double getPower() const override
+	{
+		// TODO: CHECK IMPLEMENTATION
+		// This prob needs some factor?
+		return _operand->getPower();
+	}
 };
 
 /**
@@ -338,6 +394,14 @@ public:
 	virtual RegexpVisitResult accept(RegexpVisitor* v) override
 	{
 		return v->visit(this);
+	}
+
+	virtual double getPower() const override
+	{
+		// TODO: CHECK IMPLEMENTATION
+		// TODO: ADD OPTIONAL_FACTOR = 0.5
+		// This prob needs some factor?
+		return 0.5 * _operand->getPower();
 	}
 };
 
@@ -391,6 +455,49 @@ public:
 		return v->visit(this);
 	}
 
+	virtual double getPower() const override
+	{
+		// TODO: CHECK IMPLEMENTATION
+		// This prob needs some factor?
+		// Example:
+		// {M,N} => (N - M) + 1 = at most X chars
+		// {1,2} => (2 - 1) + 1 = at most 2 chars
+		// {M,M} => (M - M) + 1 = at most 1 chars
+		// {1,1} => (1 - 1) + 1 = at most 1 chars
+		// {N,} => (N - null) + 1 = N * PLUS_FACTOR?
+		// {1,} => (1 - null) + 1 = PLUS_FACTOR
+		// {0,} => (1 - null) + 1 = STAR_FACTOR
+		if (_range.first && _range.second)
+		{
+			// If both start and end are defined and they are equal, it is fixed range.
+			if (_range.first.value() == _range.second.value())
+				return _operand->getPower();
+			else
+				return (_range.second.value() - _range.first.value()) * _operand->getPower();
+		}
+		else
+		{
+			if (_range.first)
+			{
+				switch(_range.first.value()) {
+					case 0:
+						return STAR_FACTOR * _operand->getPower();
+					case 1:
+						return PLUS_FACTOR * _operand->getPower();
+					default:
+						return (STAR_FACTOR / _range.first.value()) * _operand->getPower();
+				}
+			}
+			if (_range.second)
+			{
+				// TODO: Can this even be triggered? It's not valid regexp
+				return 424242.0;
+			}
+			// TODO: Sensible default?
+			return STAR_FACTOR * _operand->getPower();
+		}
+	}
+
 private:
 	std::pair<nonstd::optional<std::uint64_t>, nonstd::optional<std::uint64_t>> _range; ///< Lower and higher bound of the range
 };
@@ -410,12 +517,12 @@ public:
 		return _left->getText() + '|' + _right->getText();
 	}
 
-	std::shared_ptr<RegexpUnit> getLeft()
+	std::shared_ptr<RegexpUnit>& getLeft()
 	{
 		return _left;
 	}
 
-	std::shared_ptr<RegexpUnit> getRight()
+	std::shared_ptr<RegexpUnit>& getRight()
 	{
 		return _right;
 	}
@@ -423,6 +530,14 @@ public:
 	virtual RegexpVisitResult accept(RegexpVisitor* v) override
 	{
 		return v->visit(this);
+	}
+
+	virtual double getPower() const override
+	{
+		// TODO: CHECK IMPLEMENTATION
+		// TODO: ADD OPTIONAL_FACTOR = 0.5
+		// This prob needs some factor?
+		return _left->getPower() + _right->getPower();
 	}
 
 private:
@@ -443,7 +558,7 @@ public:
 		return '(' + _unit->getText() + ')';
 	}
 
-	std::shared_ptr<RegexpUnit> getUnit()
+	std::shared_ptr<RegexpUnit>& getUnit()
 	{
 		return _unit;
 	}
@@ -451,6 +566,12 @@ public:
 	virtual RegexpVisitResult accept(RegexpVisitor* v) override
 	{
 		return v->visit(this);
+	}
+
+	virtual double getPower() const override
+	{
+		// TODO: CHECK IMPLEMENTATION
+		return _unit->getPower();
 	}
 
 private:
@@ -475,7 +596,7 @@ public:
 		return result;
 	}
 
-	std::vector<std::shared_ptr<RegexpUnit>> getUnits()
+	std::vector<std::shared_ptr<RegexpUnit>>& getUnits()
 	{
 		return _units;
 	}
@@ -483,6 +604,14 @@ public:
 	virtual RegexpVisitResult accept(RegexpVisitor* v) override
 	{
 		return v->visit(this);
+	}
+
+	virtual double getPower() const override
+	{
+		double result = 0.0;
+		for (const auto& unit : _units)
+			result += unit->getPower();
+		return 1.0;
 	}
 
 private:
@@ -509,6 +638,11 @@ public:
 		return '/' + getPureText() + '/' + getSuffixModifiers() + getModifiersText();
 	}
 
+	virtual double getPower() const
+	{
+		return _unit->getPower();
+	}
+
 	virtual std::string getPureText() const override
 	{
 		return _unit->getText();
@@ -524,7 +658,7 @@ public:
 		_suffixMods = suffixMods;
 	}
 
-	std::shared_ptr<RegexpUnit> getUnit() const
+	std::shared_ptr<RegexpUnit>& getUnit()
 	{
 		return _unit;
 	}
