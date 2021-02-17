@@ -181,5 +181,9 @@ setup(
         'build': BuildCommand,
         'build_ext': BuildExtCommand
     },
+    packages=['data'],
+    package_data={
+        'data': ['*.json'],
+    },
     ext_modules=[Extension(name='yaramod', sources=[])]
 )

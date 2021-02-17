@@ -1,0 +1,6 @@
+{
+  "name": "strlen",
+  "type": "function",
+  "args": "str",
+  "returns": "int"
+}
